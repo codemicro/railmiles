@@ -1,6 +1,7 @@
 <script>
     import {onMount} from "svelte";
     import L from "leaflet";
+    import "leaflet-easybutton";
 
     export let geoJSON
 
@@ -21,6 +22,12 @@
 
         if (map) {
             geoJSONLayer.addTo(map)
+            centerMap()
+        }
+    }
+
+    const centerMap = () => {
+        if (map) {
             try {
                 map.fitBounds(geoJSONLayer.getBounds()) // sometimes this errors, sometimes it doesn't
             } catch {}
@@ -31,6 +38,8 @@
 
     onMount(() => {
         map = L.map("journey-map").setView([55.093, -2.894], 5);
+
+        L.easyButton("bi-bullseye", centerMap).addTo(map);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,

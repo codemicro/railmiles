@@ -6,7 +6,7 @@ export const roundFloat = (x, decimalPlaces) => {
     return x
 }
 
-const baseURL = "1"
+const baseURL = ""
 
 export const makeURL = (path) => {
     if (baseURL.endsWith("/") && path.startsWith("/")) {
