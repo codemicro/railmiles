@@ -2,7 +2,6 @@ package httpsrv
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/codemicro/railmiles/railmiles/internal/core"
 	"github.com/codemicro/railmiles/railmiles/internal/db"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
@@ -35,7 +34,6 @@ func (hs *httpServer) journeyListing(ctx *fiber.Ctx) error {
 		return util.Wrap(err, "getting all journey stats")
 	}
 
-	fmt.Println(math.Ceil(float64(journeyStats.RawCount/pageSize)), journeyStats.RawCount, pageSize)
 	response.NumPages = int(math.Ceil(float64(journeyStats.RawCount/pageSize))) + 1
 
 	if !(int(pageNumber*pageSize) > journeyStats.RawCount) {
