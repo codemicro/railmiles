@@ -21,7 +21,9 @@ func Run(conf *config.Config, c *core.Core) error {
 		core:   c,
 	}
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: !conf.Debug,
+	})
 	if conf.Debug {
 		app.Use(cors.New())
 	}

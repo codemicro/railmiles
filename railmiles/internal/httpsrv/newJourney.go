@@ -7,19 +7,16 @@ import (
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"regexp"
 	"strings"
 	"time"
 )
 
-var locationsRegexp = regexp.MustCompile(`(?:(?:[A-Z]){3}(?:, ?[A-Z][0-9]{5})?\n?)+`)
-
 func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 	var requestBody = struct {
-		Date           time.Time `json:"date"`
-		Route          string    `json:"route"`
-		ManualDistance float32   `json:"manualDistance"`
-		IsReturn       bool      `json:"isReturn"`
+		Date           time.Time  `json:"date"`
+		Route          [][]string `json:"route"`
+		ManualDistance float32    `json:"manualDistance"`
+		IsReturn       bool       `json:"isReturn"`
 	}{}
 
 	var response = struct {
@@ -52,14 +49,6 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 
 	requestBody.Date = requestBody.Date.UTC()
 
-	if !locationsRegexp.MatchString(requestBody.Route) {
-		ctx.Status(400)
-		return ctx.JSON(StockResponse{
-			Ok:      false,
-			Message: "Invalid route format",
-		})
-	}
-
 	var (
 		needsServiceUID = time.Now().UTC().Truncate(24*time.Hour) != requestBody.Date.Truncate(24*time.Hour)
 		locations       []string
@@ -67,11 +56,9 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 	)
 
 	{
-		lines := strings.Split(requestBody.Route, "\n")
-		for i, line := range lines {
-			p := strings.Split(line, ",")
-			if len(p) == 1 {
-				if needsServiceUID && i != len(lines)-1 && requestBody.ManualDistance == 0 {
+		for i, line := range requestBody.Route {
+			if line[1] == "" {
+				if needsServiceUID && i != len(requestBody.Route)-1 && requestBody.ManualDistance == 0 {
 					ctx.Status(400)
 					return ctx.JSON(StockResponse{
 						Ok:      false,
@@ -80,9 +67,9 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 				}
 				services = append(services, "")
 			} else {
-				services = append(services, strings.TrimSpace(p[1]))
+				services = append(services, strings.TrimSpace(line[1]))
 			}
-			locations = append(locations, strings.TrimSpace(p[0]))
+			locations = append(locations, strings.TrimSpace(line[0]))
 		}
 	}
 

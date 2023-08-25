@@ -4,6 +4,7 @@
     import Loading from "../components/Loading.svelte";
     import {push} from "svelte-spa-router";
     import ErrorAlert from "../components/ErrorAlert.svelte";
+    import RouteInput from "../components/RouteInput.svelte";
 
     let problem
     let loading
@@ -22,9 +23,14 @@
         console.log(inputs.rawDate)
     }
 
+    let specialRoute
+    $: {
+        console.log(specialRoute)
+    }
+
     const setDateToday = () => {
         const today = new Date(Date.now());
-        inputs.rawDate = `${today.getFullYear()}-${leftPad(today.getMonth()+1, "0", 2)}-${leftPad(today.getDate(), "0", 2)}`
+        inputs.rawDate = `${today.getFullYear()}-${leftPad(today.getMonth() + 1, "0", 2)}-${leftPad(today.getDate(), "0", 2)}`
         console.log("set to", inputs.rawDate)
     }
 
@@ -81,35 +87,38 @@
     <div class="pt-4"></div>
 
     {#if problem}
-        <ErrorAlert message={problem} />
+        <ErrorAlert message={problem}/>
         <div class="pt-4"></div>
     {/if}
 
     <form on:submit={doFormSubmit}>
-        <div class="row pb-2">
-            <div class="col-sm">
-                <label for="inputTravelDate" class="form-label">Date of travel <a class="link-primary"
-                                                                                  on:click={setDateToday}>(today)</a></label>
-            </div>
-            <div class="col-sm-8">
-                <input type="date" id="inputTravelDate" class="form-control" bind:value={inputs.rawDate}>
-            </div>
-        </div>
-
-        <div class="row pb-2">
-            <div class="col-sm">
-                <label for="inputRoute" class="form-label">Route</label>
-                <div class="form-text">Locations should be entered with the short code (eg: <code>SLY</code>) and
-                    optionally the service UID (eg: <code>SLY, C16977</code>). Seperate locations with a newline.
+        <div class="border-bottom pb-3 mb-3 row">
+                <div class="col-sm">
+                    <label for="inputTravelDate" class="form-label">Date of travel <a class="link-primary"
+                                                                                      on:click={setDateToday}>(today)</a></label>
                 </div>
-            </div>
-            <div class="col-sm-8">
-                <textarea type="date" id="inputRoute" rows="7" class="form-control"
-                          bind:value={inputs.route}></textarea>
-            </div>
+                <div class="col-sm-8">
+                    <input type="date" id="inputTravelDate" class="form-control" bind:value={inputs.rawDate}>
+                </div>
         </div>
 
-        <div class="row pb-2">
+        <div class="border-bottom pb-3 mb-3 row">
+                <div class="col-sm">
+                    <label class="form-label">Route</label>
+                    <div class="form-text">Locations should be entered with the short code (eg: <code>SLY</code>) and
+                        optionally the service UID (eg: <code>C16977</code>). If the journey took place on a day other
+                        than today, the journey UID is required.
+                    </div>
+                </div>
+                <div class="col-sm-8">
+                    <!--                <textarea type="date" id="inputRoute" rows="7" class="form-control"-->
+                    <!--                          bind:value={inputs.route}></textarea>-->
+
+                    <RouteInput bind:route={inputs.route}/>
+                </div>
+        </div>
+
+        <div class="border-bottom mb-3 pb-3 row">
             <div class="col-sm">
                 <label for="inputManualDistance" class="form-label">Manual distance</label>
                 <div class="form-text">Leave blank to auto-detect. Enter values in miles.</div>
@@ -120,7 +129,7 @@
             </div>
         </div>
 
-        <div class="row pb-2">
+        <div class="row pb-3">
             <div class="col-sm">
                 <label for="inputReturnJourney" class="form-label">Was this a return journey?</label>
             </div>
