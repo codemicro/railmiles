@@ -66,7 +66,7 @@
     {/if}
 
     {#if journey}
-        <h1><i class="bi-ticket-detailed"></i> {journey.from.full} to {journey.to.full}</h1>
+        <h1 class="pb-4"><i class="bi-ticket-detailed"></i> {journey.from.full} to {journey.to.full}</h1>
 
         <JourneyMap geoJSON={geoJSON}/>
 

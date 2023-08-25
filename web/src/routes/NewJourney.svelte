@@ -5,6 +5,7 @@
     import {push} from "svelte-spa-router";
     import ErrorAlert from "../components/ErrorAlert.svelte";
     import RouteInput from "../components/RouteInput.svelte";
+    import JourneyMap from "../components/JourneyMap.svelte";
 
     let problem
     let loading

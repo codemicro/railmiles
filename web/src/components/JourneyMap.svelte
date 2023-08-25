@@ -4,6 +4,7 @@
     import "leaflet-easybutton";
 
     export let geoJSON
+    export let mapHeight = "480px"
 
     let map
     let geoJSONLayer
@@ -60,11 +61,11 @@
     })
 </script>
 
-<div id="journey-map" class="mt-4"></div>
+<div id="journey-map" style="--journey-map-height: {mapHeight}"></div>
 
 <style>
     #journey-map {
-        height: 450px;
+        height: var(--journey-map-height);
     }
 
     :global(#journey-map .tile-orm .leaflet-tile) {

@@ -92,7 +92,7 @@
         </div>
     </div>
 
-    <h3 class="pt-4">Recent journeys</h3>
+    <h3 class="py-4">Recent journeys</h3>
 
     <JourneyMap geoJSON={journeyGeoData} />
 
