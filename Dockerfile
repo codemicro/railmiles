@@ -12,9 +12,13 @@ RUN npm --version
 
 RUN mkdir /build
 ADD . /build/
-WORKDIR /build
 
-RUN bash -c "(cd web; npm run build)"
+WORKDIR /build/web
+
+RUN npm install
+RUN npm run build
+
+WORKDIR /build
 
 RUN CGO_ENABLED=1 GOOS=linux go build -a -buildvcs=false -installsuffix cgo -ldflags "-extldflags '-static'" -o main github.com/codemicro/railmiles/railmiles
 
