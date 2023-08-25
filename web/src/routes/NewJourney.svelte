@@ -105,15 +105,12 @@
         <div class="border-bottom pb-3 mb-3 row">
                 <div class="col-sm">
                     <label class="form-label">Route</label>
-                    <div class="form-text">Locations should be entered with the short code (eg: <code>SLY</code>) and
+                    <div class="form-text pb-1">Locations should be entered with the short code (eg: <code>SLY</code>) and
                         optionally the service UID (eg: <code>C16977</code>). If the journey took place on a day other
                         than today, the journey UID is required.
                     </div>
                 </div>
                 <div class="col-sm-8">
-                    <!--                <textarea type="date" id="inputRoute" rows="7" class="form-control"-->
-                    <!--                          bind:value={inputs.route}></textarea>-->
-
                     <RouteInput bind:route={inputs.route}/>
                 </div>
         </div>
@@ -121,7 +118,7 @@
         <div class="border-bottom mb-3 pb-3 row">
             <div class="col-sm">
                 <label for="inputManualDistance" class="form-label">Manual distance</label>
-                <div class="form-text">Leave blank to auto-detect. Enter values in miles.</div>
+                <div class="form-text pb-1">Leave blank to auto-detect. Enter values in miles.</div>
             </div>
             <div class="col-sm-8">
                 <input type="number" step="any" id="inputManualDistance" class="form-control" placeholder="Auto-detect"
