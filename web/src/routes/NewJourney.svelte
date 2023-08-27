@@ -5,10 +5,10 @@
     import {push} from "svelte-spa-router";
     import ErrorAlert from "../components/ErrorAlert.svelte";
     import RouteInput from "../components/RouteInput.svelte";
-    import JourneyMap from "../components/JourneyMap.svelte";
 
     let problem
     let loading
+    let loadingText = "Working..."
 
     let inputs = {
         rawDate: undefined,
@@ -23,13 +23,9 @@
         inputs.date = new Date(Date.parse(inputs.rawDate))
         console.log(inputs.rawDate)
     }
-
-    let specialRoute
-    $: {
-        console.log(specialRoute)
-    }
-
-    const setDateToday = () => {
+    
+    const setDateToday = (event) => {
+        event.preventDefault() // stops the date selector being opened on mobile
         const today = new Date(Date.now());
         inputs.rawDate = `${today.getFullYear()}-${leftPad(today.getMonth() + 1, "0", 2)}-${leftPad(today.getDate(), "0", 2)}`
         console.log("set to", inputs.rawDate)
@@ -68,20 +64,43 @@
 
         const responseJSON = await response.json()
 
-        loading = false
-
-        if (response.status === 400) {
-            problem = responseJSON.message
-            return
+        const redirectToJourney = async (id) => {
+            await push(`/journeys/${id}`)
         }
 
-        await push(`/journeys/${responseJSON.id}`)
+        switch (response.status) {
+            case 200:
+                await redirectToJourney(responseJSON.id)
+                return
+            case 202:
+                console.log(responseJSON)
+                const processorID = responseJSON.processorID
+
+                const eventSrc = new EventSource(makeURL(`/api/journeys/processor/${processorID}`))
+                eventSrc.addEventListener("status", (event) => {
+                    loadingText = event.data
+                })
+                eventSrc.addEventListener("error", (event) => {
+                    problem = event.data
+                    loading = false
+                    eventSrc.close()
+                })
+                eventSrc.addEventListener("finished", async (event) => {
+                    eventSrc.close()
+                    await redirectToJourney(event.data)
+                })
+                return
+            case 400:
+                problem = responseJSON.message
+                loading = false
+                return
+        }
     }
 </script>
 
 <BaseLayout>
     {#if loading}
-        <Loading transparent={true}/>
+        <Loading text={loadingText} transparent={true}/>
     {/if}
 
     <h1><i class="bi-plus-lg"></i> Log new journey</h1>
@@ -125,6 +144,10 @@
                 <input type="number" step="any" id="inputManualDistance" class="form-control" placeholder="Auto-detect"
                        bind:value={inputs.manualDistance}>
             </div>
+        </div>
+
+        <div class="pb-3 d-block d-md-none">
+            <label for="inputReturnJourney" class="form-label">Was this a return journey?</label>
         </div>
 
         <div class="row pb-3">

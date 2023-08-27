@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (c *Core) GetRouteDistance(stations []string, services []string, date time.Time) (float32, error) {
+func (c *Core) GetRouteDistance(stations []string, services []string, date time.Time, statusChan chan *util.SSEItem) (float32, error) {
 	year := strconv.Itoa(time.Now().Year())
 	month := strconv.Itoa(int(time.Now().Month()))
 	if len(month) == 1 {
@@ -40,6 +40,10 @@ func (c *Core) GetRouteDistance(stations []string, services []string, date time.
 						DisplayAs string `json:"displayAs"`
 					} `json:"locationDetail"`
 				} `json:"services"`
+			}
+			statusChan <- &util.SSEItem{
+				Event:   "status",
+				Message: fmt.Sprintf("Searching for services for leg %s->%s", stations[i], stations[i+1]),
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			err := requests.
@@ -71,6 +75,10 @@ func (c *Core) GetRouteDistance(stations []string, services []string, date time.
 
 	var total float32
 	for i := 0; i < len(stations)-1; i += 1 {
+		statusChan <- &util.SSEItem{
+			Event:   "status",
+			Message: fmt.Sprintf("Fetching distance for service %s (for leg %s->%s)", services[i], stations[i], stations[i+1]),
+		}
 		dist, err := c.getSingleTrainDistance(services[i], stations[i], stations[i+1], date)
 		if err != nil {
 			return 0, util.Wrap(err, "scraping train")

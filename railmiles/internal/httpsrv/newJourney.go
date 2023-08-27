@@ -1,28 +1,26 @@
 package httpsrv
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/codemicro/railmiles/railmiles/internal/db"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 	"strings"
 	"time"
 )
 
+type newJourneyRequest struct {
+	Date           time.Time  `json:"date"`
+	Route          [][]string `json:"route"`
+	ManualDistance float32    `json:"manualDistance"`
+	IsReturn       bool       `json:"isReturn"`
+}
+
 func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
-	var requestBody = struct {
-		Date           time.Time  `json:"date"`
-		Route          [][]string `json:"route"`
-		ManualDistance float32    `json:"manualDistance"`
-		IsReturn       bool       `json:"isReturn"`
-	}{}
-
-	var response = struct {
-		ID uuid.UUID `json:"id"`
-	}{}
-
 	if !strings.EqualFold(ctx.Get("Content-Type"), "application/json") {
 		ctx.Status(400)
 		return ctx.JSON(StockResponse{
@@ -30,6 +28,8 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 			Message: "invalid Content-Type (requires application/json)",
 		})
 	}
+
+	requestBody := new(newJourneyRequest)
 
 	if err := json.Unmarshal(ctx.Body(), &requestBody); err != nil {
 		ctx.Status(400)
@@ -73,18 +73,30 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 		}
 	}
 
+	pid, ch := hs.newProcessor()
+
+	go hs.processNewJourney(requestBody, locations, services, pid, ch)
+
+	ctx.Status(202)
+	return ctx.JSON(&struct {
+		ProcessorID uuid.UUID `json:"processorID"`
+	}{pid})
+}
+
+func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, locations, services []string, processID uuid.UUID, output chan *util.SSEItem) {
 	var dist float32
 	if requestBody.ManualDistance != 0 {
 		dist = requestBody.ManualDistance
 	} else {
 		var err error
-		dist, err = hs.core.GetRouteDistance(locations, services, requestBody.Date)
+		dist, err = hs.core.GetRouteDistance(locations, services, requestBody.Date, output)
 		if err != nil {
-			ctx.Status(400)
-			return ctx.JSON(StockResponse{
-				Ok:      false,
+			output <- &util.SSEItem{
+				Event:   "error",
 				Message: "Unable to fetch distance: " + err.Error(),
-			})
+			}
+			hs.cleanupProcessor(processID)
+			return
 		}
 	}
 
@@ -106,10 +118,49 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 	}
 
 	if err := hs.core.InsertJourney(j); err != nil {
-		return fmt.Errorf("inserting new journey: %w", err)
+		slog.Error("error when inserting new journey", "err", err)
+		output <- &util.SSEItem{
+			Event:   "error",
+			Message: "Internal Server Error",
+		}
+		hs.cleanupProcessor(processID)
+		return
 	}
 
-	response.ID = j.ID
+	output <- &util.SSEItem{
+		Event:   "finished",
+		Message: j.ID.String(),
+	}
+	hs.cleanupProcessor(processID)
+}
 
-	return ctx.JSON(&response)
+func (hs *httpServer) serveProcessorStream(ctx *fiber.Ctx) error {
+	idStr := ctx.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return fiber.ErrNotFound
+	}
+
+	hs.journeyProcessorLock.Lock()
+	channel, found := hs.journeyProcessors[id]
+	hs.journeyProcessorLock.Unlock()
+
+	if !found {
+		fmt.Println("no lol")
+		return fiber.ErrNotFound
+	}
+
+	ctx.Set("Content-Type", "text/event-stream")
+	fr := ctx.Response()
+	fr.SetBodyStreamWriter(func(w *bufio.Writer) {
+		for item := range channel {
+			_, _ = w.Write([]byte(item.String()))
+			if err := w.Flush(); err != nil {
+				// client disconnected
+				return
+			}
+		}
+	})
+	return nil
 }

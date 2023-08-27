@@ -6,7 +6,7 @@ export const roundFloat = (x, decimalPlaces) => {
     return x
 }
 
-const baseURL = ""
+const baseURL = "http://localhost:8000"
 
 export const makeURL = (path) => {
     if (baseURL.endsWith("/") && path.startsWith("/")) {
