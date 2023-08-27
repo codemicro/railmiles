@@ -85,7 +85,7 @@
                 <td>
                     {#if journey.via}
                         {#each journey.via as station, i}
-                            {#if i !== 0},{/if}{station.full} ({station.shortcode})
+                            {#if i !== 0}, {/if}{station.full} ({station.shortcode})
                         {/each}
                     {:else}
                         <span class="text-secondary"><i>n/a</i></span>
