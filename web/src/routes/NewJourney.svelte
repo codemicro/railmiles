@@ -146,10 +146,6 @@
             </div>
         </div>
 
-        <div class="pb-3 d-block d-md-none">
-            <label for="inputReturnJourney" class="form-label">Was this a return journey?</label>
-        </div>
-
         <div class="row pb-3">
             <div class="col-sm">
                 <label for="inputReturnJourney" class="form-label">Was this a return journey?</label>
