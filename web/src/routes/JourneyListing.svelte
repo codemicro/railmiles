@@ -50,11 +50,11 @@
 
     <nav class="d-flex justify-content-center">
         <ul class="pagination">
-            <li class={currentPage === 0 ? "page-item disabled" : "page-item"}><a class="page-link" on:click={() => {currentPage--}}><i class="bi-chevron-left"></i></a></li>
+            <li class={currentPage === 0 ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage--}}><i class="bi-chevron-left"></i></a></li>
             {#each {length: totalNumPages} as _, i}
-                <li class={currentPage === i ? "page-item active" : "page-item"}><a class="page-link" on:click={() => {currentPage=i}}>{i+1}</a></li>
+                <li class={currentPage === i ? "page-item active" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage=i}}>{i+1}</a></li>
             {/each}
-            <li class={currentPage+1 === totalNumPages ? "page-item disabled" : "page-item"}><a class="page-link" on:click={() => {currentPage++}}><i class="bi-chevron-right"></i></a></li>
+            <li class={currentPage+1 === totalNumPages ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage++}}><i class="bi-chevron-right"></i></a></li>
         </ul>
     </nav>
 
