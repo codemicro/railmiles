@@ -100,6 +100,7 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 				continue
 			}
 			dist = &d
+			break
 		}
 
 		if dist == nil {
