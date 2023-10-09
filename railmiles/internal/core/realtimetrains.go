@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (c *Core) GetRouteDistance(stations []string, services []string, date time.Time, statusChan chan *util.SSEItem) (float32, error) {
+func (c *Core) GetRouteDistance(stations []string, inputServices []string, date time.Time, statusChan chan *util.SSEItem) (float32, error) {
 	year := strconv.Itoa(time.Now().Year())
 	month := strconv.Itoa(int(time.Now().Month()))
 	if len(month) == 1 {
@@ -29,8 +29,17 @@ func (c *Core) GetRouteDistance(stations []string, services []string, date time.
 	}
 	todayRunDate := date.Format("2006-01-02")
 
+	var services [][]string
+	for _, x := range inputServices {
+		if x != "" {
+			services = append(services, []string{x})
+		} else {
+			services = append(services, nil)
+		}
+	}
+
 	for i := 0; i < len(stations)-1; i += 1 {
-		if services[i] == "" {
+		if len(services[i]) == 0 {
 			var rttResp struct {
 				Services []struct {
 					ServiceUid     string `json:"serviceUid"`
@@ -57,39 +66,55 @@ func (c *Core) GetRouteDistance(stations []string, services []string, date time.
 				return 0, fmt.Errorf("search for service %s->%s: %w", stations[i], stations[i+1], err)
 			}
 
-			uid := ""
+			var possibleUIDs []string
 			for _, service := range rttResp.Services {
+				if len(possibleUIDs) == 10 {
+					break
+				}
 				if service.RunDate == todayRunDate && // If this train started on a different date and runs through midnight
 					!strings.EqualFold(service.LocationDetail.DisplayAs, "CANCELLED_CALL") && // If this train was cancelled
 					service.IsPassenger {
-					uid = service.ServiceUid
-					break
+					possibleUIDs = append(possibleUIDs, service.ServiceUid)
 				}
 			}
-			if uid == "" {
+			if len(possibleUIDs) == 0 {
 				return 0, errors.New("no route found")
 			}
-			services[i] = uid
+			services[i] = possibleUIDs
 		}
 	}
 
 	var total float32
 	for i := 0; i < len(stations)-1; i += 1 {
-		statusChan <- &util.SSEItem{
-			Event:   "status",
-			Message: fmt.Sprintf("Fetching distance for service %s (for leg %s->%s)", services[i], stations[i], stations[i+1]),
+		var dist *float32
+		for _, serv := range services[i] {
+			statusChan <- &util.SSEItem{
+				Event:   "status",
+				Message: fmt.Sprintf("Fetching distance for service %s (for leg %s->%s)", serv, stations[i], stations[i+1]),
+			}
+			d, err := c.getSingleTrainDistance(serv, stations[i], stations[i+1], date)
+			if err != nil {
+				if !errors.Is(err, noDistancesError) {
+					return 0, util.Wrap(err, "scraping train")
+				}
+				continue
+			}
+			dist = &d
 		}
-		dist, err := c.getSingleTrainDistance(services[i], stations[i], stations[i+1], date)
-		if err != nil {
-			return 0, util.Wrap(err, "scraping train")
+
+		if dist == nil {
+			return 0, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (tried %s) - manual distance required", stations[i], stations[i+1], strings.Join(services[i], ", ")))
 		}
-		total += dist
+
+		total += *dist
 	}
 
 	return total, nil
 }
 
 var shortcodeRegexp = regexp.MustCompile(`[A-Z]{3}`)
+
+var noDistancesError = errors.New("no distances available")
 
 func (c *Core) getSingleTrainDistance(uid, departure, destination string, date time.Time) (float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -133,7 +158,8 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 	for _, wp := range waypoints {
 		if strings.EqualFold(wp[0], departure) || strings.EqualFold(wp[0], destination) {
 			if wp[1] == "" || wp[2] == "" {
-				return 0, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (%s) - manual distance required", departure, destination, uid))
+				return 0, noDistancesError
+				//return 0, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (%s) - manual distance required", departure, destination, uid))
 			}
 			miles, err := strconv.Atoi(wp[1])
 			if err != nil {
