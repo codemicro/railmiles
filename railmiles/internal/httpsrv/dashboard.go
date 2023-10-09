@@ -23,6 +23,12 @@ func (hs *httpServer) dashboardInfo(ctx *fiber.Ctx) error {
 	if err != nil {
 		return util.Wrap(err, "fetching journeys in the last month")
 	}
+	if len(journeys) == 0 {
+		// We specifically do not want this to be a `nil`, which it is by default. This would cause a `null` to be
+		// encoded in JSON, which causes the frontend to freak out a bit because something tries then to iterate over
+		// a null and that clearly is wrong.
+		journeys = []*db.Journey{}
+	}
 
 	response.GeoJSON = []byte(hs.core.GenerateJourneyGeoJSON(journeys))
 
