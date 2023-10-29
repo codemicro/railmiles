@@ -30,7 +30,7 @@ func (hs *httpServer) dashboardInfo(ctx *fiber.Ctx) error {
 		journeys = []*db.Journey{}
 	}
 
-	response.GeoJSON = []byte(hs.core.GenerateJourneyGeoJSON(journeys))
+	response.GeoJSON = []byte(hs.core.GenerateJourneyGeoJSON(journeys, false))
 
 	lastMonthStats, err := hs.core.GetJourneyStats(core.LastMonth)
 	if err != nil {

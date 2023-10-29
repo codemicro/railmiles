@@ -6,11 +6,16 @@ import (
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 )
 
-func (c *Core) GenerateJourneyGeoJSON(journeys []*db.Journey) string {
+func (c *Core) GenerateJourneyGeoJSON(journeys []*db.Journey, includeIntermediaries bool) string {
 	var stations []string
 	{
 		for _, journey := range journeys {
 			stations = append(stations, journey.To.Shortcode, journey.From.Shortcode)
+			if includeIntermediaries {
+				for _, sn := range journey.Via {
+					stations = append(stations, sn.Shortcode)
+				}
+			}
 		}
 		stations = util.Deduplicate(stations)
 	}

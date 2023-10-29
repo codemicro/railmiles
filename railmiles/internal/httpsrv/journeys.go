@@ -72,7 +72,7 @@ func (hs *httpServer) getJourney(ctx *fiber.Ctx) error {
 	core.PopulateFullStationNames(ja)
 
 	response.Data = journey
-	response.GeoJSON = []byte(hs.core.GenerateJourneyGeoJSON(ja))
+	response.GeoJSON = []byte(hs.core.GenerateJourneyGeoJSON(ja, true))
 
 	return ctx.JSON(&response)
 }
