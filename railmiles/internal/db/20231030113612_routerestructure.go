@@ -27,22 +27,24 @@ func init() {
 				return util.Wrap(err, "read old routes")
 			}
 
-			var newRoutes []*Route
-			for _, oldRoute := range existingRoutes {
-				r := &Route{
-					From: oldRoute.From,
-					To:   oldRoute.To,
+			if len(existingRoutes) != 0 {
+				var newRoutes []*Route
+				for _, oldRoute := range existingRoutes {
+					r := &Route{
+						From: oldRoute.From,
+						To:   oldRoute.To,
+					}
+					for i, point := range oldRoute.Route {
+						rq := *r
+						rq.Sequence = i
+						rq.Station = point
+						newRoutes = append(newRoutes, &rq)
+					}
 				}
-				for i, point := range oldRoute.Route {
-					rq := *r
-					rq.Sequence = i
-					rq.Station = point
-					newRoutes = append(newRoutes, &rq)
-				}
-			}
 
-			if _, err := db.NewInsert().Model(&newRoutes).ModelTableExpr("railmiles_routes_neo").Exec(ctx); err != nil {
-				return util.Wrap(err, "insert new routes")
+				if _, err := db.NewInsert().Model(&newRoutes).ModelTableExpr("railmiles_routes_neo").Exec(ctx); err != nil {
+					return util.Wrap(err, "insert new routes")
+				}
 			}
 
 			if _, err := db.NewRaw(`DROP TABLE "railmiles_routes";`).Exec(ctx); err != nil {
