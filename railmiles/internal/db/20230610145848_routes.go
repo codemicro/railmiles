@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/uptrace/bun"
 )
@@ -22,10 +23,7 @@ func init() {
 			return nil
 		},
 		func(ctx context.Context, db *bun.DB) error {
-			if _, err := db.NewDropTable().Model((*Route)(nil)).Exec(ctx); err != nil {
-				return util.Wrap(err, "dropping routes table")
-			}
-			return nil
+			return errors.New("not supported")
 		},
 	)
 }
