@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/carlmjohnson/requests"
-	"github.com/codemicro/railmiles/railmiles/internal/db"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/rs/zerolog/log"
 	"math"
@@ -195,11 +194,7 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 		}
 	}
 
-	err = c.InsertRoute(&db.Route{
-		From:  departure,
-		To:    destination,
-		Route: route,
-	})
+	err = c.InsertRoute(departure, destination, route)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to save route")
 	}
