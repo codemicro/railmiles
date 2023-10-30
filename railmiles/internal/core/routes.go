@@ -48,7 +48,7 @@ func (c *Core) InsertRoute(from, to string, route []string) error {
 		rq.Station = point
 		routeParts = append(routeParts, &rq)
 	}
-	_, err := c.db.DB.NewInsert().Model(routeParts).Exec(context.Background())
+	_, err := c.db.DB.NewInsert().Model(&routeParts).Exec(context.Background())
 	if err != nil {
 		var e sqlite3.Error
 		if errors.As(err, &e) {
