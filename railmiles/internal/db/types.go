@@ -23,7 +23,7 @@ type Journey struct {
 	Return   bool           `json:"return"`
 }
 
-type legacyRoute struct {
+type routeV1 struct {
 	bun.BaseModel `bun:"table:railmiles_routes"`
 
 	From  string
@@ -31,13 +31,21 @@ type legacyRoute struct {
 	Route []string `bun:",nullzero"`
 }
 
-type Route struct {
+type routeV2 struct {
 	bun.BaseModel `bun:"table:railmiles_routes"`
 
 	From     string
 	To       string
 	Sequence int
 	Station  string
+}
+
+type Route struct {
+	bun.BaseModel `bun:"table:railmiles_routes_v3"`
+
+	JourneyID uuid.UUID `bun:",pk,type:uuid"`
+	Sequence  int
+	Station   string
 }
 
 type StationName struct {

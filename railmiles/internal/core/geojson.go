@@ -34,19 +34,9 @@ journeyLoop:
 		})...)
 		routeStations = append(routeStations, journey.To.Shortcode)
 
-		var route []string
-
-		for i := 0; i < len(routeStations)-1; i += 1 {
-			a := routeStations[i]
-			b := routeStations[i+1]
-
-			route = append(route, a)
-
-			points, err := c.GetCallingPoints(a, b)
-			if err == nil {
-				route = append(route, points...)
-			}
-		}
+		route, _ := c.GetCallingPoints(journey.ID)
+		route = append([]string{journey.From.Shortcode}, route...)
+		route = append(route, journey.To.Shortcode)
 
 		route = append(route, routeStations[len(routeStations)-1])
 

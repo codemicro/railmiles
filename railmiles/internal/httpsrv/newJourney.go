@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/codemicro/railmiles/railmiles/internal/core"
 	"github.com/codemicro/railmiles/railmiles/internal/db"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/gofiber/fiber/v2"
@@ -84,9 +85,9 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 }
 
 func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, locations, services []string, processID uuid.UUID, output chan *util.SSEItem) {
-	var dist float32
+	var dist *core.DistanceWithRoute
 	if requestBody.ManualDistance != 0 {
-		dist = requestBody.ManualDistance
+		dist.Distance = requestBody.ManualDistance
 	} else {
 		var err error
 		dist, err = hs.core.GetRouteDistance(locations, services, requestBody.Date, output)
@@ -112,13 +113,23 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 		Via: util.Map(via, func(x string) *db.StationName {
 			return &db.StationName{Shortcode: x}
 		}),
-		Distance: dist,
+		Distance: dist.Distance,
 		Date:     requestBody.Date,
 		Return:   requestBody.IsReturn,
 	}
 
 	if err := hs.core.InsertJourney(j); err != nil {
 		slog.Error("error when inserting new journey", "err", err)
+		output <- &util.SSEItem{
+			Event:   "error",
+			Message: "Internal Server Error",
+		}
+		hs.cleanupProcessor(processID)
+		return
+	}
+
+	if err := hs.core.InsertRoute(j.ID, dist.Route); err != nil {
+		slog.Error("error when inserting new journey route", "err", err)
 		output <- &util.SSEItem{
 			Event:   "error",
 			Message: "Internal Server Error",

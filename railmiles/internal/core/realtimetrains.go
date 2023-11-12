@@ -8,7 +8,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/carlmjohnson/requests"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
-	"github.com/rs/zerolog/log"
 	"math"
 	"regexp"
 	"strconv"
@@ -16,7 +15,17 @@ import (
 	"time"
 )
 
-func (c *Core) GetRouteDistance(stations []string, inputServices []string, date time.Time, statusChan chan *util.SSEItem) (float32, error) {
+type DistanceWithRoute struct {
+	Distance float32
+	Route    []string
+}
+
+func (dwr *DistanceWithRoute) Add(dw2 *DistanceWithRoute) {
+	dwr.Distance += dw2.Distance
+	dwr.Route = append(dwr.Route, dw2.Route...)
+}
+
+func (c *Core) GetRouteDistance(stations []string, inputServices []string, date time.Time, statusChan chan *util.SSEItem) (*DistanceWithRoute, error) {
 	year := strconv.Itoa(time.Now().Year())
 	month := strconv.Itoa(int(time.Now().Month()))
 	if len(month) == 1 {
@@ -62,7 +71,7 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 				Fetch(ctx)
 			cancel()
 			if err != nil {
-				return 0, fmt.Errorf("search for service %s->%s: %w", stations[i], stations[i+1], err)
+				return nil, fmt.Errorf("search for service %s->%s: %w", stations[i], stations[i+1], err)
 			}
 
 			var possibleUIDs []string
@@ -77,15 +86,18 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 				}
 			}
 			if len(possibleUIDs) == 0 {
-				return 0, errors.New("no route found")
+				return nil, errors.New("no route found")
 			}
 			services[i] = possibleUIDs
 		}
 	}
 
-	var total float32
+	var total DistanceWithRoute
 	for i := 0; i < len(stations)-1; i += 1 {
-		var dist *float32
+		if i != 0 {
+			total.Route = append(total.Route, stations[i])
+		}
+		var dist *DistanceWithRoute
 		for _, serv := range services[i] {
 			statusChan <- &util.SSEItem{
 				Event:   "status",
@@ -94,29 +106,29 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 			d, err := c.getSingleTrainDistance(serv, stations[i], stations[i+1], date)
 			if err != nil {
 				if !errors.Is(err, noDistancesError) {
-					return 0, util.Wrap(err, "scraping train")
+					return nil, util.Wrap(err, "scraping train")
 				}
 				continue
 			}
-			dist = &d
+			dist = d
 			break
 		}
 
 		if dist == nil {
-			return 0, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (tried %s) - manual distance required", stations[i], stations[i+1], strings.Join(services[i], ", ")))
+			return nil, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (tried %s) - manual distance required", stations[i], stations[i+1], strings.Join(services[i], ", ")))
 		}
 
-		total += *dist
+		total.Add(dist)
 	}
 
-	return total, nil
+	return &total, nil
 }
 
 var shortcodeRegexp = regexp.MustCompile(`[A-Z]{3}`)
 
 var noDistancesError = errors.New("no distances available")
 
-func (c *Core) getSingleTrainDistance(uid, departure, destination string, date time.Time) (float32, error) {
+func (c *Core) getSingleTrainDistance(uid, departure, destination string, date time.Time) (*DistanceWithRoute, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -127,12 +139,12 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 		ToString(&htmlContent).
 		Fetch(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("fetch train with UID %s: %w", uid, err)
+		return nil, fmt.Errorf("fetch train with UID %s: %w", uid, err)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBufferString(htmlContent))
 	if err != nil {
-		return 0, fmt.Errorf("load RTT HTML: %w", err)
+		return nil, fmt.Errorf("load RTT HTML: %w", err)
 	}
 
 	var waypoints [][3]string
@@ -158,23 +170,23 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 	for _, wp := range waypoints {
 		if strings.EqualFold(wp[0], departure) || strings.EqualFold(wp[0], destination) {
 			if wp[1] == "" || wp[2] == "" {
-				return 0, noDistancesError
-				//return 0, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (%s) - manual distance required", departure, destination, uid))
+				return nil, noDistancesError
+				//return nil, util.UserError(fmt.Errorf("no distance information provided for %s -> %s (%s) - manual distance required", departure, destination, uid))
 			}
 			miles, err := strconv.Atoi(wp[1])
 			if err != nil {
-				return 0, fmt.Errorf("parse miles: %w (%#v)", err, wp[1])
+				return nil, fmt.Errorf("parse miles: %w (%#v)", err, wp[1])
 			}
 			chains, err := strconv.Atoi(wp[2])
 			if err != nil {
-				return 0, fmt.Errorf("parse chains: %w (%#v)", err, wp[2])
+				return nil, fmt.Errorf("parse chains: %w (%#v)", err, wp[2])
 			}
 			distances = append(distances, float32(miles)+util.ChainsToMiles(chains))
 		}
 	}
 
 	if len(distances) != 2 {
-		return 0, fmt.Errorf("unexpected number of occurences of source/dest stations in RTT HTML (got %d, expected 2)", len(distances))
+		return nil, fmt.Errorf("unexpected number of occurences of source/dest stations in RTT HTML (got %d, expected 2)", len(distances))
 	}
 
 	var route []string
@@ -185,7 +197,7 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 				inbetweenTerminii = true
 			} else if strings.EqualFold(wp[0], destination) {
 				if !inbetweenTerminii {
-					return 0, errors.New("unexpectedly formatted route: destination before departure")
+					return nil, errors.New("unexpectedly formatted route: destination before departure")
 				}
 				break
 			} else if inbetweenTerminii {
@@ -194,10 +206,8 @@ func (c *Core) getSingleTrainDistance(uid, departure, destination string, date t
 		}
 	}
 
-	err = c.InsertRoute(departure, destination, route)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to save route")
-	}
-
-	return float32(math.Abs(float64(distances[1] - distances[0]))), nil
+	return &DistanceWithRoute{
+		Distance: float32(math.Abs(float64(distances[1] - distances[0]))),
+		Route:    route,
+	}, nil
 }

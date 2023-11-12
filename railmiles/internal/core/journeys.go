@@ -140,6 +140,10 @@ func (c *Core) GetJourney(id uuid.UUID) (*db.Journey, error) {
 
 func (c *Core) DeleteJourney(id uuid.UUID) error {
 	_, err := c.db.DB.NewDelete().Model((*db.Journey)(nil)).Where("id = ?", id).Exec(context.Background())
+	if err != nil {
+		return err
+	}
+	_, err = c.db.DB.NewDelete().Model((*db.Route)(nil)).Where("journey_id = ?", id).Exec(context.Background())
 	return err
 }
 

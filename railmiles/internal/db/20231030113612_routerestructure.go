@@ -22,15 +22,15 @@ func init() {
 				return util.Wrap(err, "creating new routes table")
 			}
 
-			var existingRoutes []*legacyRoute
+			var existingRoutes []*routeV1
 			if err := db.NewSelect().Model(&existingRoutes).Scan(ctx, &existingRoutes); err != nil {
 				return util.Wrap(err, "read old routes")
 			}
 
 			if len(existingRoutes) != 0 {
-				var newRoutes []*Route
+				var newRoutes []*routeV2
 				for _, oldRoute := range existingRoutes {
-					r := &Route{
+					r := &routeV2{
 						From: oldRoute.From,
 						To:   oldRoute.To,
 					}
