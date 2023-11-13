@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/uptrace/bun"
 	"golang.org/x/exp/slices"
@@ -55,10 +54,6 @@ func init() {
 				})...)
 				stops = append(stops, journey.To.Shortcode)
 
-				if journey.ID.String() == "d325d808-ec49-4320-b07d-0e3a76641bd7" {
-					fmt.Println(stops)
-				}
-
 				var overallRoute []string
 
 				for i := 0; i < len(stops)-1; i += 1 {
@@ -78,10 +73,6 @@ func init() {
 				}
 
 				overallRoute = overallRoute[1:]
-
-				if journey.ID.String() == "d325d808-ec49-4320-b07d-0e3a76641bd7" {
-					fmt.Println(overallRoute)
-				}
 
 				for i, x := range overallRoute {
 					toInsert = append(toInsert, []any{journey.ID, i, x})
