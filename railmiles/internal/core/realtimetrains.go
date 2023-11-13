@@ -58,10 +58,7 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 					} `json:"locationDetail"`
 				} `json:"services"`
 			}
-			statusChan <- &util.SSEItem{
-				Event:   "status",
-				Message: fmt.Sprintf("Searching for services for leg %s->%s", stations[i], stations[i+1]),
-			}
+			util.SendSSE(statusChan, "status", fmt.Sprintf("Searching for services for leg %s->%s", stations[i], stations[i+1]))
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			err := requests.
 				URL("https://api.rtt.io").
@@ -99,10 +96,8 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 		}
 		var dist *DistanceWithRoute
 		for _, serv := range services[i] {
-			statusChan <- &util.SSEItem{
-				Event:   "status",
-				Message: fmt.Sprintf("Fetching distance for service %s (for leg %s->%s)", serv, stations[i], stations[i+1]),
-			}
+			util.SendSSE(statusChan, "status", fmt.Sprintf("Fetching distance for service %s (for leg %s->%s)", serv, stations[i], stations[i+1]))
+
 			d, err := c.getSingleTrainDistance(serv, stations[i], stations[i+1], date)
 			if err != nil {
 				if !errors.Is(err, noDistancesError) {

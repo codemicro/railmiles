@@ -2,6 +2,16 @@ package util
 
 import "strings"
 
+func SendSSE(ch chan *SSEItem, event, message string) {
+	if ch == nil {
+		return
+	}
+	ch <- &SSEItem{
+		Event:   event,
+		Message: message,
+	}
+}
+
 type SSEItem struct {
 	Event   string
 	Message string
