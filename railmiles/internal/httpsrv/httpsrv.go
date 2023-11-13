@@ -42,6 +42,7 @@ func Run(conf *config.Config, c *core.Core) error {
 
 func (hs *httpServer) registerRoutes(app *fiber.App) {
 	app.Get("/api/dashboard", hs.dashboardInfo)
+	app.Post("/api/services", hs.searchServices)
 	app.Get("/api/journeys", hs.journeyListing)
 	app.Post("/api/journeys", hs.newJourney)
 	app.Get("/api/journeys/:id", hs.getJourney)

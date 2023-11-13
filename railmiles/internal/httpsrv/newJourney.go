@@ -14,6 +14,77 @@ import (
 	"time"
 )
 
+type searchServicesRequest [][]string
+
+func (hs *httpServer) searchServices(ctx *fiber.Ctx) error {
+	if !strings.EqualFold(ctx.Get("Content-Type"), "application/json") {
+		ctx.Status(400)
+		return ctx.JSON(StockResponse{
+			Ok:      false,
+			Message: "invalid Content-Type (requires application/json)",
+		})
+	}
+
+	var requestBody searchServicesRequest
+
+	if err := json.Unmarshal(ctx.Body(), &requestBody); err != nil {
+		ctx.Status(400)
+		return ctx.JSON(StockResponse{
+			Ok:      false,
+			Message: "unable to parse request body",
+		})
+	}
+
+	for _, stns := range requestBody {
+		if ls := len(stns); !(2 <= ls && ls <= 3) {
+			ctx.Status(400)
+			return ctx.JSON(StockResponse{
+				Ok:      false,
+				Message: "incorrect number of stations",
+			})
+		}
+		stns[0] = strings.ToUpper(stns[0])
+		stns[1] = strings.ToUpper(stns[1])
+	}
+
+	type searchResult struct {
+		From     string     `json:"from"`
+		To       string     `json:"to"`
+		Services [][]string `json:"service"`
+	}
+
+	var res []*searchResult
+
+	for _, stationPair := range requestBody {
+		around := ""
+		if len(stationPair) > 2 {
+			around = stationPair[2]
+		}
+		servs, err := hs.core.SearchForServices(stationPair[0], stationPair[1], around)
+		if err != nil {
+			return util.Wrap(err, "searching for services")
+		}
+		x := &searchResult{
+			From:     stationPair[0],
+			To:       stationPair[1],
+			Services: nil,
+		}
+		for _, serv := range servs {
+			dest := "unknown"
+			if len(serv.LocationDetail.Destination) > 0 {
+				dest = serv.LocationDetail.Destination[0].Description
+			}
+			x.Services = append(x.Services, []string{
+				serv.ServiceUID,
+				fmt.Sprintf("%s to %s [%s] (%s %s)", serv.LocationDetail.GBTTBookedDeparture, dest, serv.Headcode, serv.ATOCCode, serv.ATOCName),
+			})
+		}
+		res = append(res, x)
+	}
+
+	return ctx.JSON(res)
+}
+
 type newJourneyRequest struct {
 	Date           time.Time  `json:"date"`
 	Route          [][]string `json:"route"`

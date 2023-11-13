@@ -25,6 +25,79 @@ func (dwr *DistanceWithRoute) Add(dw2 *DistanceWithRoute) {
 	dwr.Route = append(dwr.Route, dw2.Route...)
 }
 
+type RTTService struct {
+	ServiceUID     string `json:"serviceUid"`
+	Headcode       string `json:"runningIdentity"`
+	ATOCName       string `json:"atocName"`
+	ATOCCode       string `json:"atocCode"`
+	IsPassenger    bool   `json:"isPassenger"`
+	RunDate        string `json:"runDate"`
+	LocationDetail struct {
+		DisplayAs           string `json:"displayAs"`
+		GBTTBookedDeparture string `json:"gbttBookedDeparture"`
+		Destination         []*struct {
+			Tiploc      string `json:"tiploc"`
+			Description string `json:"description"`
+		} `json:"destination"`
+	} `json:"locationDetail"`
+}
+
+func (c *Core) SearchForServices(from, to, aroundTime string) ([]*RTTService, error) {
+	nowUTC := time.Now().UTC()
+	today := nowUTC.Format("2006-01-02")
+
+	year := strconv.Itoa(nowUTC.Year())
+	month := strconv.Itoa(int(nowUTC.Month()))
+	if len(month) == 1 {
+		month = "0" + month
+	}
+	day := strconv.Itoa(nowUTC.Day())
+	if len(day) == 1 {
+		day = "0" + day
+	}
+
+	var rttResp struct {
+		Services []*RTTService `json:"services"`
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	path := fmt.Sprintf("/api/v1/json/search/%s/to/%s/%s/%s/%s", from, to, year, month, day)
+	if _, e := strconv.Atoi(aroundTime); aroundTime != "" && e == nil {
+		path += "/" + aroundTime
+	}
+	err := requests.
+		URL("https://api.rtt.io").
+		Path(path).
+		ToJSON(&rttResp).
+		BasicAuth(c.config.RealTimeTrains.Username, c.config.RealTimeTrains.Password).
+		Fetch(ctx)
+	cancel()
+	if err != nil {
+		return nil, fmt.Errorf("search for service %s->%s: %w", from, to, err)
+	}
+
+	n := 0
+	for i, service := range rttResp.Services {
+		if i == 15 {
+			break
+		}
+		if service.RunDate == today && // If this train started on a different date and runs through midnight
+			!strings.EqualFold(service.LocationDetail.DisplayAs, "CANCELLED_CALL") && // If this train was cancelled
+			service.IsPassenger {
+			rttResp.Services[n] = service
+			n += 1
+		}
+	}
+
+	rttResp.Services = rttResp.Services[:n]
+
+	if len(rttResp.Services) == 0 {
+		return nil, errors.New("no route found")
+	}
+
+	return rttResp.Services, nil
+}
+
 func (c *Core) GetRouteDistance(stations []string, inputServices []string, date time.Time, statusChan chan *util.SSEItem) (*DistanceWithRoute, error) {
 	year := strconv.Itoa(time.Now().Year())
 	month := strconv.Itoa(int(time.Now().Month()))
@@ -49,14 +122,7 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 	for i := 0; i < len(stations)-1; i += 1 {
 		if len(services[i]) == 0 {
 			var rttResp struct {
-				Services []struct {
-					ServiceUid     string `json:"serviceUid"`
-					IsPassenger    bool   `json:"isPassenger"`
-					RunDate        string `json:"runDate"`
-					LocationDetail struct {
-						DisplayAs string `json:"displayAs"`
-					} `json:"locationDetail"`
-				} `json:"services"`
+				Services []*RTTService `json:"services"`
 			}
 			util.SendSSE(statusChan, "status", fmt.Sprintf("Searching for services for leg %s->%s", stations[i], stations[i+1]))
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -79,7 +145,7 @@ func (c *Core) GetRouteDistance(stations []string, inputServices []string, date 
 				if service.RunDate == todayRunDate && // If this train started on a different date and runs through midnight
 					!strings.EqualFold(service.LocationDetail.DisplayAs, "CANCELLED_CALL") && // If this train was cancelled
 					service.IsPassenger {
-					possibleUIDs = append(possibleUIDs, service.ServiceUid)
+					possibleUIDs = append(possibleUIDs, service.ServiceUID)
 				}
 			}
 			if len(possibleUIDs) == 0 {
