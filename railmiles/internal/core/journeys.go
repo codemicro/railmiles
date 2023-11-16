@@ -8,6 +8,7 @@ import (
 	"github.com/codemicro/railmiles/railmiles/internal/util"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 )
 
 type timeSince uint8
@@ -69,24 +70,14 @@ func (c *Core) GetJourneys(args *GetJourneysArgs) ([]*db.Journey, error) {
 }
 
 type JourneyStats struct {
-	Count int `json:"count"`
-	// RawCount is the count as in the number of rows, not the count as in the
-	// number of trips (ie. counts return journeys as one)
-	RawCount int     `json:"rawCount"`
-	Miles    float32 `json:"miles"`
+	Count int     `json:"count"`
+	Miles float32 `json:"miles"`
 }
 
 func (c *Core) GetJourneyStats(since timeSince) (*JourneyStats, error) {
-	var (
-		rtns      []bool
-		distQtys  []float32
-		countQtys []int
-	)
-
 	q := c.db.DB.NewSelect().
 		Model((*db.Journey)(nil)).
-		ColumnExpr("return, sum(distance), count(*)").
-		Group("return")
+		ColumnExpr("sum(distance), count(*)")
 
 	dur, err := since.SQLDuration()
 	if err != nil {
@@ -97,20 +88,9 @@ func (c *Core) GetJourneyStats(since timeSince) (*JourneyStats, error) {
 		q = q.Where(`"journey"."date" > date('now', ?)`, dur)
 	}
 
-	if err := q.Scan(context.Background(), &rtns, &distQtys, &countQtys); err != nil {
-		return nil, fmt.Errorf("querying total miles: %w", err)
-	}
-
 	js := new(JourneyStats)
-	for i := 0; i < len(rtns); i += 1 {
-		if rtns[i] { // if this is a return journey:
-			js.Count += countQtys[i] * 2
-			js.Miles += distQtys[i] * 2
-		} else {
-			js.Count += countQtys[i]
-			js.Miles += distQtys[i]
-		}
-		js.RawCount += countQtys[i]
+	if err := q.Scan(context.Background(), &js.Miles, &js.Count); err != nil {
+		return nil, fmt.Errorf("querying total miles: %w", err)
 	}
 
 	return js, nil
@@ -143,6 +123,10 @@ func (c *Core) DeleteJourney(id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+	_, err = c.db.DB.NewUpdate().Model((*db.Journey)(nil)).Set("return_id = null").Where("return_id = ?", id).Exec(context.Background())
+	if err != nil {
+		return err
+	}
 	_, err = c.db.DB.NewDelete().Model((*db.Route)(nil)).Where("journey_id = ?", id).Exec(context.Background())
 	return err
 }
@@ -150,4 +134,58 @@ func (c *Core) DeleteJourney(id uuid.UUID) error {
 func (c *Core) InsertJourney(journey *db.Journey) error {
 	_, err := c.db.DB.NewInsert().Model(journey).Exec(context.Background())
 	return err
+}
+
+func (c *Core) UpdateJourney(journey *db.Journey) error {
+	_, err := c.db.DB.NewUpdate().Model(journey).WherePK().Exec(context.Background())
+	return err
+}
+
+var ErrReturnAlreadyExists = errors.New("return journey already exists")
+
+func (c *Core) CreateReturnJourney(id uuid.UUID) (uuid.UUID, error) {
+	sourceJourney := new(db.Journey)
+	if err := c.db.DB.NewSelect().Model(sourceJourney).Where("id = ?", id).Scan(context.Background()); err != nil {
+		return uuid.UUID{}, err
+	}
+	if sourceJourney.ReturnID != nil {
+		return uuid.UUID{}, ErrReturnAlreadyExists
+	}
+	calls, err := c.GetCallingPoints(id)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	var newJourney *db.Journey
+	{
+		x := *sourceJourney
+		newJourney = &x
+	}
+
+	newJourney.To, newJourney.From = newJourney.From, newJourney.To
+	if len(newJourney.Via) != 0 {
+		// When creating a new journey and adding a return at this same time, newJourney.Via being a copy of sourceJourney.Via and being reversed in place would cause the original to be reversed in place too.
+		n := make([]*db.StationName, len(newJourney.Via))
+		copy(n, newJourney.Via)
+		newJourney.Via = n
+	}
+	slices.Reverse(newJourney.Via)
+	newJourney.ID = uuid.New()
+	newJourney.ReturnID = &sourceJourney.ID
+	if err := c.InsertJourney(newJourney); err != nil {
+		return uuid.UUID{}, err
+	}
+	if len(calls) != 0 {
+		slices.Reverse(calls)
+		if err := c.InsertRoute(newJourney.ID, calls); err != nil {
+			return uuid.UUID{}, err
+		}
+	}
+
+	sourceJourney.ReturnID = &newJourney.ID
+	if err := c.UpdateJourney(sourceJourney); err != nil {
+		return uuid.UUID{}, err
+	}
+
+	return newJourney.ID, nil
 }

@@ -40,7 +40,7 @@ func init() {
 				})
 			}
 
-			var journeys []*Journey
+			var journeys []*journeyV1
 			if err := db.NewSelect().Model(&journeys).Scan(ctx, &journeys); err != nil {
 				return util.Wrap(err, "read journeys")
 			}

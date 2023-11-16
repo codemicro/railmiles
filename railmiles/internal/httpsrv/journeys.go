@@ -2,6 +2,7 @@ package httpsrv
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/codemicro/railmiles/railmiles/internal/core"
 	"github.com/codemicro/railmiles/railmiles/internal/db"
 	"github.com/codemicro/railmiles/railmiles/internal/util"
@@ -34,9 +35,9 @@ func (hs *httpServer) journeyListing(ctx *fiber.Ctx) error {
 		return util.Wrap(err, "getting all journey stats")
 	}
 
-	response.NumPages = int(math.Ceil(float64(journeyStats.RawCount/pageSize))) + 1
+	response.NumPages = int(math.Ceil(float64(journeyStats.Count/pageSize))) + 1
 
-	if !(int(pageNumber*pageSize) > journeyStats.RawCount) {
+	if !(int(pageNumber*pageSize) > journeyStats.Count) {
 		journeys, err := hs.core.GetJourneys(&core.GetJourneysArgs{Offset: int(pageSize * pageNumber), Limit: pageSize})
 		if err != nil {
 			return util.Wrap(err, "getting paginated journeys")
@@ -89,4 +90,22 @@ func (hs *httpServer) deleteJourney(ctx *fiber.Ctx) error {
 
 	ctx.Status(204)
 	return nil
+}
+
+func (hs *httpServer) createReturnJourney(ctx *fiber.Ctx) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return fiber.ErrNotFound
+	}
+
+	newID, err := hs.core.CreateReturnJourney(id)
+	if err != nil {
+		if errors.Is(err, core.ErrReturnAlreadyExists) {
+			ctx.Status(409)
+			return ctx.SendString("Return already exists!")
+		}
+		return util.Wrap(err, "creating return journey for %s", id.String())
+	}
+
+	return ctx.JSON(newID)
 }

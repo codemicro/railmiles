@@ -149,9 +149,10 @@
         <div class="row pb-3">
             <div class="col-sm">
                 <label for="inputReturnJourney" class="form-label">Was this a return journey?</label>
+                <div class="form-text pb-1">Checking this box will create second, return journey at the same time.</div>
             </div>
             <div class="col-sm-8">
-                <input type="checkbox" id="inputReturnJourney" class="form-check-input" bind:checked={inputs.isReturn}>
+                <input type="checkbox" id="inputReturnJourney" class="form-check-input" bind:checked={inputs.createReturn}>
             </div>
         </div>
 

@@ -9,14 +9,14 @@ import (
 func init() {
 	Migrations.MustRegister(
 		func(ctx context.Context, db *bun.DB) error {
-			if _, err := db.NewCreateTable().Model((*Journey)(nil)).Exec(ctx); err != nil {
+			if _, err := db.NewCreateTable().Model((*journeyV1)(nil)).Exec(ctx); err != nil {
 				return util.Wrap(err, "creating journey table")
 			}
 
 			return nil
 		},
 		func(ctx context.Context, db *bun.DB) error {
-			if _, err := db.NewDropTable().Model((*Journey)(nil)).Exec(ctx); err != nil {
+			if _, err := db.NewDropTable().Model((*journeyV1)(nil)).Exec(ctx); err != nil {
 				return util.Wrap(err, "dropping journey table")
 			}
 

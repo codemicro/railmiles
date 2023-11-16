@@ -47,6 +47,7 @@ func (hs *httpServer) registerRoutes(app *fiber.App) {
 	app.Get("/api/journeys/:id", hs.getJourney)
 	app.Get("/api/journeys/processor/:id", hs.serveProcessorStream)
 	app.Delete("/api/journeys/:id", hs.deleteJourney)
+	app.Post("/api/journeys/:id/return", hs.createReturnJourney)
 	app.Use(filesystem.New(filesystem.Config{
 		Root:       http.FS(webAssets.Public),
 		PathPrefix: "public",

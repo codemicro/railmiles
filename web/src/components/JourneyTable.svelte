@@ -16,10 +16,8 @@
     <tr>
         <th scope="col">Date</th>
         <th scope="col">Route</th>
-        <!--        <th scope="col">To</th>-->
         <th scope="col"></th>
         <th scope="col">Distance</th>
-        <th scope="col">Return</th>
         <th scope="col"></th>
     </tr>
     </thead>
@@ -37,19 +35,16 @@
                 {/if}
             </td>
             <td>{roundFloat(journey.distance, 1)} miles</td>
-            <td>
-                {#if journey.return }<i class="bi-check-lg"></i>{/if}
-            </td>
             <td><a href="#/journeys/{journey.id}"><i class="bi-three-dots"></i></a></td>
         </tr>
     {:else}
         <tr>
-            <td colspan="6" class="text-center bg-warning-subtle text-warning-emphasis">Nothing to display!</td>
+            <td colspan="5" class="text-center bg-warning-subtle text-warning-emphasis">Nothing to display!</td>
         </tr>
     {/each}
     {#if showMore}
         <tr>
-            <td colspan="6"><a href="#/journeys">See more...</a></td>
+            <td colspan="5"><a href="#/journeys">See more...</a></td>
         </tr>
     {/if}
     </tbody>

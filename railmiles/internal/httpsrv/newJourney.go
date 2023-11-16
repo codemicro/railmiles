@@ -18,7 +18,7 @@ type newJourneyRequest struct {
 	Date           time.Time  `json:"date"`
 	Route          [][]string `json:"route"`
 	ManualDistance float32    `json:"manualDistance"`
-	IsReturn       bool       `json:"isReturn"`
+	CreateReturn   bool       `json:"createReturn"`
 }
 
 func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
@@ -85,6 +85,8 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 }
 
 func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, locations, services []string, processID uuid.UUID, output chan *util.SSEItem) {
+	defer hs.cleanupProcessor(processID)
+
 	var dist *core.DistanceWithRoute
 	if requestBody.ManualDistance != 0 {
 		dist.Distance = requestBody.ManualDistance
@@ -96,7 +98,6 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 				Event:   "error",
 				Message: "Unable to fetch distance: " + err.Error(),
 			}
-			hs.cleanupProcessor(processID)
 			return
 		}
 	}
@@ -115,7 +116,6 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 		}),
 		Distance: dist.Distance,
 		Date:     requestBody.Date,
-		Return:   requestBody.IsReturn,
 	}
 
 	if err := hs.core.InsertJourney(j); err != nil {
@@ -124,7 +124,6 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 			Event:   "error",
 			Message: "Internal Server Error",
 		}
-		hs.cleanupProcessor(processID)
 		return
 	}
 
@@ -134,15 +133,25 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 			Event:   "error",
 			Message: "Internal Server Error",
 		}
-		hs.cleanupProcessor(processID)
 		return
+	}
+
+	if requestBody.CreateReturn {
+		_, err := hs.core.CreateReturnJourney(j.ID)
+		if err != nil {
+			slog.Error("error when creating return journey", "err", err)
+			output <- &util.SSEItem{
+				Event:   "error",
+				Message: "Internal Server Error",
+			}
+			return
+		}
 	}
 
 	output <- &util.SSEItem{
 		Event:   "finished",
 		Message: j.ID.String(),
 	}
-	hs.cleanupProcessor(processID)
 }
 
 func (hs *httpServer) serveProcessorStream(ctx *fiber.Ctx) error {

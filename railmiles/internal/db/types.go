@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type Journey struct {
+type journeyV1 struct {
 	bun.BaseModel `bun:"table:railmiles_journeys" json:"-"`
 
 	ID uuid.UUID `bun:",pk,type:uuid" json:"id"`
@@ -21,6 +21,19 @@ type Journey struct {
 	Distance float32        `json:"distance"`
 	Date     time.Time      `json:"date"`
 	Return   bool           `json:"return"`
+}
+
+type Journey struct {
+	bun.BaseModel `bun:"table:railmiles_journeys_v2" json:"-"`
+
+	ID uuid.UUID `bun:",pk,type:uuid" json:"id"`
+
+	From     *StationName   `json:"from"`
+	To       *StationName   `json:"to"`
+	Via      []*StationName `bun:",nullzero" json:"via"`
+	Distance float32        `json:"distance"`
+	Date     time.Time      `json:"date"`
+	ReturnID *uuid.UUID     `bun:",nullzero,type:uuid" json:"returnID,omitempty"`
 }
 
 type routeV1 struct {

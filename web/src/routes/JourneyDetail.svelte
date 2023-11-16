@@ -15,7 +15,8 @@
     let journey;
     let geoJSON;
 
-    onMount(async () => {
+    const initialLoad = async () => {
+        ready = false;
         let response;
         try {
             response = await fetch(makeURL("/api/journeys/" + params.id));
@@ -32,7 +33,15 @@
         journey = responseJSON.data
         geoJSON = responseJSON.geoJSON
         ready = true
-    })
+    }
+
+    onMount(initialLoad)
+
+    const switchToJourney = async (newID) => {
+        transparentLoading = true
+        params.id = newID
+        await initialLoad()
+    }
 
     const deleteSelf = async () => {
         if (!confirm("Are you sure you want to permanently delete this journey?")) {
@@ -57,6 +66,29 @@
 
         alert("Success!")
         await push("/journeys")
+    }
+
+    const createReturn = async () => {
+        transparentLoading = true
+        ready = false
+
+        let response;
+        try {
+            response = await fetch(makeURL("/api/journeys/" + params.id + "/return"), {method: "POST"});
+        } catch (e) {
+            alert(e.toString())
+            return
+        }
+
+        if (!response.ok) {
+            alert(response.statusText)
+            return
+        }
+
+        const j = await response.json()
+
+        alert("Success!")
+        await switchToJourney(j)
     }
 </script>
 
@@ -100,14 +132,21 @@
                 <th scope="row">Distance</th>
                 <td>{roundFloat(journey.distance, 2)} miles</td>
             </tr>
-            <tr>
-                <th scope="row">Return</th>
-                <td>{journey.return ? "Yes" : "No"}</td>
-            </tr>
+            {#if journey.returnID }
+                <tr>
+                    <th scope="row">Return</th>
+                    <td><a href="#/journeys/{journey.returnID}" on:click={() => switchToJourney(journey.returnID)}>{journey.to.full} to {journey.from.full}</a></td>
+                </tr>
+            {/if}
             </tbody>
         </table>
 
-        <button class="btn btn-danger mb-4" on:click={deleteSelf}>Delete this journey</button>
+        <div class="mb-4">
+            <button class="btn btn-outline-danger" on:click={deleteSelf}>Delete this journey</button>
+            {#if !journey.returnID }
+                <button class="btn btn-outline-primary" on:click={createReturn}>Create return</button>
+            {/if}
+        </div>
 
         <p class="text-secondary">Journey ID: <code>{journey.id}</code></p>
     {/if}
