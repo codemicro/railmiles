@@ -3,6 +3,12 @@
 
     export let journeys = [];
     export let showMore = false;
+
+    $: {
+        if (journeys === null) {
+            journeys = [];
+        }
+    }
 </script>
 
 <table class="table table-sm table-hover">
