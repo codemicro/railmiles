@@ -7,13 +7,13 @@ import (
 )
 
 func (c *Core) GenerateJourneyGeoJSON(journeys []*db.Journey, includeIntermediaries bool) string {
-	var stations []string
+	var stations [][2]string
 	{
 		for _, journey := range journeys {
-			stations = append(stations, journey.To.Shortcode, journey.From.Shortcode)
+			stations = append(stations, [2]string{journey.To.Shortcode, ""}, [2]string{journey.From.Shortcode, ""})
 			if includeIntermediaries {
 				for _, sn := range journey.Via {
-					stations = append(stations, sn.Shortcode)
+					stations = append(stations, [2]string{sn.Shortcode, "intermediary"})
 				}
 			}
 		}
@@ -60,13 +60,20 @@ journeyLoop:
 	}
 
 	for _, station := range stations {
-		stationDetails := GetStationDetail(station)
+		stationDetails := GetStationDetail(station[0])
 		if stationDetails == nil {
 			continue
 		}
+
+		props := map[string]any{"name": station[0] + " " + GetStationName(station[0])}
+
+		if station[1] != "" {
+			props["type"] = station[1]
+		}
+
 		res = append(res, map[string]any{
 			"type":       "Feature",
-			"properties": map[string]any{"name": station + " " + GetStationName(station)},
+			"properties": props,
 			"geometry":   map[string]any{"type": "Point", "coordinates": []float32{stationDetails.Lon, stationDetails.Lat}},
 		})
 	}

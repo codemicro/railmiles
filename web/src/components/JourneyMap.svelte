@@ -15,9 +15,19 @@
         }
 
         geoJSONLayer = L.geoJSON(obj, { onEachFeature: (feature, layer) => {
-                if (feature.properties && feature.properties.name) {
-                    layer.bindPopup(feature.properties.name);
+                if (feature.properties) {
+                    if (feature.properties.name) {
+                        layer.bindPopup(feature.properties.name);
+                    }
                 }
+            },
+
+            pointToLayer: (feature, latLong) => {
+                const icon = new L.Icon.Default();
+                if (feature.properties && feature.properties.type && feature.properties.type == "intermediary") {
+                    icon.options.className = "purple-marker";
+                }
+                return new L.marker(latLong, {icon: icon})
             }
         })
 
@@ -70,5 +80,9 @@
 
     :global(#journey-map .tile-orm .leaflet-tile) {
         filter: grayscale(1);
+    }
+
+    :global(#journey-map .purple-marker) {
+        filter: hue-rotate(70deg);
     }
 </style>
