@@ -40,7 +40,7 @@ journeyLoop:
 
 		route = append(route, routeStations[len(routeStations)-1])
 
-		var coords [][]float32
+		var coords [][2]float32
 		{
 			last := len(route) - 1
 			for i, point := range route {
@@ -51,11 +51,11 @@ journeyLoop:
 					}
 					continue
 				}
-				coords = append(coords, []float32{details.Lon, details.Lat})
+				coords = append(coords, [2]float32{details.Lon, details.Lat})
 			}
 		}
 
-		feature["coordinates"] = coords
+		feature["coordinates"] = smoothLine(coords)
 		res = append(res, feature)
 	}
 
@@ -80,4 +80,37 @@ journeyLoop:
 
 	o, _ := json.Marshal(res)
 	return string(o)
+}
+
+func smoothLine(coords [][2]float32) [][2]float32 {
+	// Chaikin’s curve algorithm
+	
+	const scale = 0.125
+
+	for range 5 {
+		newPoints := [][2]float32{coords[0]}
+		for i, point := range coords[1 : len(coords)-1] {
+			i += 1 // since we're skipping the first
+
+			previousPoint := coords[i-1]
+			nextPoint := coords[i+1]
+
+			{
+				dx := point[0] - previousPoint[0]
+				dy := point[1] - previousPoint[1]
+
+				newPoints = append(newPoints, [2]float32{point[0] - (dx * scale), point[1] - (dy * scale)})
+			}
+
+			{
+				dx := nextPoint[0] - point[0]
+				dy := nextPoint[1] - point[1]
+
+				newPoints = append(newPoints, [2]float32{point[0] + (dx * scale), point[1] + (dy * scale)})
+			}
+		}
+		newPoints = append(newPoints, coords[len(coords)-1])
+		coords = newPoints
+	}
+	return coords
 }
