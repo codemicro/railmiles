@@ -127,13 +127,15 @@ func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, location
 		return
 	}
 
-	if err := hs.core.InsertRoute(j.ID, dist.Route); err != nil {
-		slog.Error("error when inserting new journey route", "err", err)
-		output <- &util.SSEItem{
-			Event:   "error",
-			Message: "Internal Server Error",
+	if len(dist.Route) != 0 {
+		if err := hs.core.InsertRoute(j.ID, dist.Route); err != nil {
+			slog.Error("error when inserting new journey route", "err", err)
+			output <- &util.SSEItem{
+				Event:   "error",
+				Message: "Internal Server Error",
+			}
+			return
 		}
-		return
 	}
 
 	if requestBody.CreateReturn {
