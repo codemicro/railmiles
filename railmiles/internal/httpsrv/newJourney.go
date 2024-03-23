@@ -87,7 +87,7 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, locations, services []string, processID uuid.UUID, output chan *util.SSEItem) {
 	defer hs.cleanupProcessor(processID)
 
-	var dist *core.DistanceWithRoute
+	dist := new(core.DistanceWithRoute)
 	if requestBody.ManualDistance != 0 {
 		dist.Distance = requestBody.ManualDistance
 	} else {
