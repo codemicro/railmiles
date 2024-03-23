@@ -1,6 +1,6 @@
 module github.com/codemicro/railmiles
 
-go 1.20
+go 1.22
 
 require (
 	git.tdpain.net/pkg/cfger v0.1.0
