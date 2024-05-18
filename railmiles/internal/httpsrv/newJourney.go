@@ -85,7 +85,16 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 }
 
 func (hs *httpServer) processNewJourney(requestBody *newJourneyRequest, locations, services []string, processID uuid.UUID, output chan *util.SSEItem) {
-	defer hs.cleanupProcessor(processID)
+	defer func() {
+		// In some cases, if we have a simple journey to process (eg. one with a predefined length that needs no
+		// external API calls), it can be processed, inserted and the steam cleaned up before the client has the time to
+		// roundtrip and make that initial request. This then means the client gets a 404 when requesting the stream and
+		// just does nothing. Adding a delay here prevents that 404.
+		go func() {
+			time.Sleep(time.Second * 10)
+			hs.cleanupProcessor(processID)
+		}()
+	}()
 
 	dist := new(core.DistanceWithRoute)
 	if requestBody.ManualDistance != 0 {
