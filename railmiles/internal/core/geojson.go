@@ -35,6 +35,17 @@ journeyLoop:
 		routeStations = append(routeStations, journey.To.Shortcode)
 
 		route, _ := c.GetCallingPoints(journey.ID)
+
+		if len(route) == 0 && len(journey.Via) != 0 {
+			// This likely means that the journey had calling points listed as well as a manual distance, hence no auto
+			// route was inserted into the database. This check allows us to fit the line to the calling points so we
+			// don't end up with a line that goes direct between A and B without passing through C or D.
+			route = make([]string, len(journey.Via))
+			for i, x := range journey.Via {
+				route[i] = x.Shortcode
+			}
+		}
+
 		route = append([]string{journey.From.Shortcode}, route...)
 		route = append(route, journey.To.Shortcode)
 
@@ -84,7 +95,7 @@ journeyLoop:
 
 func smoothLine(coords [][2]float32) [][2]float32 {
 	// Chaikin’s curve algorithm
-	
+
 	const scale = 0.125
 
 	for range 5 {
