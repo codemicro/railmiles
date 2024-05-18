@@ -1,0 +1,20 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == build'
+
+stages:
+  - build
+
+default:
+  image: docker
+  services:
+    - docker:dind
+
+buildAndPush:
+  stage: build
+  before_script:
+    - "echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin"
+    - "docker info"
+  script:
+    - "docker build . --file Dockerfile --tag ${CI_REGISTRY_IMAGE}:latest --tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+    - "docker push --all-tags $CI_REGISTRY_IMAGE"
