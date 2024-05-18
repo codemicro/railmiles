@@ -169,7 +169,6 @@ func (hs *httpServer) serveProcessorStream(ctx *fiber.Ctx) error {
 	hs.journeyProcessorLock.Unlock()
 
 	if !found {
-		fmt.Println("no lol")
 		return fiber.ErrNotFound
 	}
 
