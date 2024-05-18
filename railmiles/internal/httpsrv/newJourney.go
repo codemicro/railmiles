@@ -70,7 +70,7 @@ func (hs *httpServer) newJourney(ctx *fiber.Ctx) error {
 			} else {
 				services = append(services, strings.TrimSpace(line[1]))
 			}
-			locations = append(locations, strings.TrimSpace(line[0]))
+			locations = append(locations, strings.ToUpper(strings.TrimSpace(line[0])))
 		}
 	}
 
