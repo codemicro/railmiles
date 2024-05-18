@@ -22,6 +22,32 @@
         return await response.json()
     }
 
+    const makeWindow = () => {
+        let parts
+
+        if (totalNumPages < 3) {
+            parts = []
+            for (let i = 0; i < totalNumPages; i += 1) {
+                parts.push(i)
+            }
+            return parts
+        }
+
+        const cursor = currentPage + 1
+
+        if (cursor - 1 == 0) {
+            // we've got the first one selected
+            parts = [cursor, cursor + 1, cursor + 2]
+        } else if (cursor + 1 > totalNumPages) {
+            // we've got the last one selected
+            parts = [cursor - 2, cursor - 1, cursor]
+        } else {
+            parts = [cursor - 1, cursor, cursor + 1]
+        }
+
+        return parts
+    }
+
     onMount(async () => {
         const resp = await getPage(currentPage)
         totalNumPages = resp.numPages
@@ -50,11 +76,13 @@
 
     <nav class="d-flex justify-content-center">
         <ul class="pagination">
+            <li class={currentPage === 0 ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage = 0}}><i class="bi-chevron-double-left"></i></a></li>
             <li class={currentPage === 0 ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage--}}><i class="bi-chevron-left"></i></a></li>
-            {#each {length: totalNumPages} as _, i}
-                <li class={currentPage === i ? "page-item active" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage=i}}>{i+1}</a></li>
+            {#each makeWindow() as pageNumber, _ (pageNumber)}
+                <li class={currentPage === pageNumber - 1 ? "page-item active" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage=pageNumber - 1}}>{pageNumber}</a></li>
             {/each}
             <li class={currentPage+1 === totalNumPages ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage++}}><i class="bi-chevron-right"></i></a></li>
+            <li class={currentPage+1 === totalNumPages ? "page-item disabled" : "page-item"}><a role="button" tabindex="0" class="page-link" on:click={() => {currentPage = totalNumPages-1}}><i class="bi-chevron-double-right"></i></a></li>
         </ul>
     </nav>
 
